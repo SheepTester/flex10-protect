@@ -1,0 +1,69 @@
+body {
+  margin: 0;
+  background-color: #FAF9F7;
+  font-size: 0;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.status-bar {
+  background-color: #0677ba;
+  border-bottom: 1px solid #22303e;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  left: 0;
+  height: 60px;
+  z-index: 100;
+}
+.logo {
+  margin: 16px;
+  height: 24px;
+}
+
+.floating {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+}
+.post {
+  background-color: white;
+  padding: 5px;
+  font-size: 12px;
+  width: 200px;
+  height: 100px;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding-left: 50px;
+  background-size: 40px;
+  background-position: 5px 5px;
+  background-repeat: no-repeat;
+  color: #333;
+  line-height: 1.4;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  margin: -50px -100px;
+}
+.post::before {
+  color: #4479b3;
+  font-weight: bold;
+  display: block;
+}
+.post-by-munkler {
+  background-image: url('./images/munkler.png');
+}
+.post-by-munkler::before {
+  content: 'Leuf Munkler';
+}
+.post-by-gggta {
+  background-image: url('./images/gggta.png');
+}
+.post-by-gggta::before {
+  content: 'Translator of Arabic';
+}
+.diacritic-beam {
+  display: inline-block;
+  font-size: 16px;
+  transform-origin: bottom;
+  user-select: none;
+  letter-spacing: -0.1ch;
+}
