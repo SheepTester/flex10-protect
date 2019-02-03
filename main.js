@@ -19,14 +19,25 @@ function genDiacriticBeam(width = 4, length = 100) {
   return str;
 }
 
-const NAVBAR_WIDTH = 60;
-const objects = [];
-let screenWidthRadius, screenHeight;
-function updateScreenMeasurements() {
-  screenWidthRadius = window.innerWidth / 2, screenHeight = window.innerHeight - NAVBAR_WIDTH;
+const GAME_WIDTH = 300; // 1:1.5
+const GAME_HEIGHT = 450;
+const NAVBAR_HEIGHT = 60;
+function doScreenSizeCalculations() {
+  const width = window.innerWidth;
+  const height = window.innerHeight - NAVBAR_HEIGHT;
+  if (height / width > 1.5) {
+    document.body.style.setProperty('--scale', width / GAME_WIDTH);
+    document.body.style.setProperty('--right', 0);
+    // document.body.style.setProperty('--width', '100%');
+  } else {
+    document.body.style.setProperty('--scale', height / GAME_HEIGHT);
+    document.body.style.setProperty('--right', (width - GAME_WIDTH * height / GAME_HEIGHT) / 2 + 'px');
+    // document.body.style.setProperty('--width', GAME_WIDTH * height / GAME_HEIGHT + 'px');
+  }
 }
-window.addEventListener('resize', updateScreenMeasurements);
-updateScreenMeasurements();
+window.addEventListener('resize', doScreenSizeCalculations);
+
+const objects = [];
 
 class Positionable {
 
@@ -34,6 +45,7 @@ class Positionable {
     this.x = initX;
     this.y = initY;
     objects.push(this);
+    this.removed = false;
 
     this.elem = document.createElement('div');
     this.elem.classList.add('floating');
@@ -47,12 +59,20 @@ class Positionable {
     this.elem.style.transform = `translate(${this.x}px, ${this.y}px)`;
   }
 
+  remove() {
+    if (this.removed) return;
+    if (this.elem.parentNode) this.elem.parentNode.removeChild(this.elem);
+    const index = objects.indexOf(this);
+    if (~index) objects.splice(index, 1);
+    this.removed = true;
+  }
+
 }
 
 class Post extends Positionable {
 
   constructor(author, content) {
-    super(0, screenHeight);
+    super(0, GAME_HEIGHT);
     this.elem.classList.add('post');
     this.elem.classList.add('post-by-' + author);
     this.elem.textContent = content;
@@ -62,7 +82,28 @@ class Post extends Positionable {
 
   tick(timePassed) {
     this.prog += timePassed / 500;
-    this.y = screenHeight - this.prog * screenHeight / 100;
+    this.y = GAME_HEIGHT - this.prog * GAME_HEIGHT / 100;
+  }
+
+}
+
+class Bullet extends Positionable {
+
+  constructor(initX, initY, direction, speed, type = '') {
+    super(initX, initY);
+    this.elem.classList.add('bullet');
+    this.elem.classList.add('bullet-' + type);
+    this.dx = Math.cos(direction);
+    this.dy = Math.sin(direction);
+    this.speed = speed;
+  }
+
+  tick(elapsedTime) {
+    this.x += this.dx * this.speed * elapsedTime / 1000;
+    this.y += this.dy * this.speed * elapsedTime / 1000;
+    if (this.x > screenWidthRadius || this.x < -screenWidthRadius || this.y < 0 || this.y > screenHeight) {
+      this.remove();
+    }
   }
 
 }
@@ -72,15 +113,18 @@ function tick() {
   window.requestAnimationFrame(tick);
   const now = Date.now();
   const elapsedTime = now - lastTime;
-  objects.forEach(obj => {
+  [...objects].forEach(obj => {
     obj.tick(elapsedTime);
     obj.position(elapsedTime);
   });
   lastTime = now;
 }
 
+let gameWrapper;
 document.addEventListener('DOMContentLoaded', e => {
+  doScreenSizeCalculations();
+  gameWrapper = document.getElementById('game');
   const post = new Post('munkler', 'All students are now required to recite the SELF anthem every morning during the announcements.');
-  document.body.appendChild(post.elem);
+  gameWrapper.appendChild(post.elem);
   tick();
 }, {once: true});

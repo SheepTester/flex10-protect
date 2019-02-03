@@ -1,28 +1,38 @@
 body {
   margin: 0;
-  background-color: #FAF9F7;
   font-size: 0;
   font-family: 'Open Sans', sans-serif;
+  background-color: #797873;
+  overflow: hidden;
 }
 
 .status-bar {
   background-color: #0677ba;
   border-bottom: 1px solid #22303e;
-  position: fixed;
   width: 100%;
-  top: 0;
-  left: 0;
   height: 60px;
   z-index: 100;
+  box-sizing: border-box;
 }
 .logo {
   margin: 16px;
   height: 24px;
 }
 
-.floating {
+#game {
   position: fixed;
   top: 60px;
+  right: var(--right);
+  width: 300px;
+  height: 450px;
+  background-color: #FAF9F7;
+  overflow: hidden;
+  transform-origin: top right;
+  transform: scale(var(--scale));
+}
+.floating {
+  position: absolute;
+  top: 0;
   left: 50%;
 }
 .post {
@@ -66,4 +76,12 @@ body {
   transform-origin: bottom;
   user-select: none;
   letter-spacing: -0.1ch;
+}
+.bullet {
+  background-color: white;
+  border-radius: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px;
+  box-shadow: 0 0 15px red, 0 0 5px red;
 }
