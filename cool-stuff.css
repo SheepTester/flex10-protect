@@ -85,3 +85,22 @@ body {
   margin: -2.5px;
   box-shadow: 0 0 15px red, 0 0 5px red;
 }
+.person {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  margin: -15px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 2;
+}
+.person-player {
+  background-image: url('./images/player.png');
+}
+.person-paffy {
+  background-image: url('./images/paffy.png');
+}
+.person-poof {
+  background-image: url('./images/poof.png');
+}
