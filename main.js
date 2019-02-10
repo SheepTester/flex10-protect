@@ -19,6 +19,8 @@ function genDiacriticBeam(width = 4, length = 100) {
   return str;
 }
 
+const svgNS = 'http://www.w3.org/2000/svg';
+
 function compareDistance(dx, dy, dist) {
   const squares = dx * dx + dy * dy;
   const square = dist * dist;
@@ -108,7 +110,6 @@ class Positionable {
   constructor(initX = 0, initY = 0) {
     this.x = initX;
     this.y = initY;
-    objects.push(this);
     this.removed = false;
 
     this.elem = document.createElement('div');
@@ -134,8 +135,8 @@ class Positionable {
 
 }
 
-const POST_WIDTH_RADIUS = 100;
-const POST_HEIGHT_RADIUS = 50;
+const POST_WIDTH_RADIUS = 50;
+const POST_HEIGHT_RADIUS = 25;
 class Post extends Positionable {
 
   constructor(author, content) {
@@ -154,56 +155,89 @@ class Post extends Positionable {
     this.y = GAME_HEIGHT - this.prog * GAME_HEIGHT / 100;
   }
 
-  onhit() {
-    console.log('post hit!');
+  get rect() {
+    return {
+      x: this.x - POST_WIDTH_RADIUS,
+      y: this.y - POST_HEIGHT_RADIUS,
+      width: POST_WIDTH_RADIUS * 2,
+      height: POST_HEIGHT_RADIUS * 2,
+      owner: this
+    };
+  }
+
+  onhit(oofiness) {
+    console.log('POST', oofiness);
   }
 
 }
 
-const bulletTypes = {
-  player: {speed: 200, type: ''},
-  paffy: {speed: 10, type: 'diacritic'},
-  poof: {speed: 10, type: 'diacritic'}
-};
-const BULLET_RADIUS = 2.5;
-class Bullet extends Positionable {
+class Beam extends Positionable {
 
-  constructor(initX, initY, parent, direction, speed, type = '') {
+  constructor(initX, initY, segmentWidth, segments, owner) {
     super(initX, initY);
-    this.elem.classList.add('bullet');
-    if (type) this.elem.classList.add('bullet-' + type);
-    this.dx = Math.cos(direction);
-    this.dy = Math.sin(direction);
-    this.speed = speed;
-    this.parent = parent;
-    this.isBullet = true;
+    this.elem.classList.add('beam');
+    this.svg = document.createElementNS(svgNS, 'svg');
+    this.svg.setAttributeNS(null, 'width', segments * segmentWidth);
+    this.path = document.createElementNS(svgNS, 'path');
+    this.svg.appendChild(this.path);
+    this.elem.appendChild(this.svg);
+    
+    this.segmentWidth = segmentWidth;
+    this.segments = segments;
+    this.direction = 0;
+    this.owner = owner;
   }
 
-  tick(elapsedTime) {
-    this.x += this.dx * this.speed * elapsedTime / 1000;
-    this.y += this.dy * this.speed * elapsedTime / 1000;
-    if (this.x > GAME_WIDTH_RADIUS || this.x < -GAME_WIDTH_RADIUS || this.y < 0 || this.y > GAME_HEIGHT) {
-      this.remove();
-    } else {
-      objects.find(obj => {
-        if (obj.bulletCollideable && obj !== this.parent) {
-          if (obj.isIndividual) {
-            if (compareDistance(this.x - obj.x, this.y - obj.y, INDIVIDUAL_RADIUS + BULLET_RADIUS) <= 0) {
-              this.remove();
-              obj.onhit();
-              return true;
-            }
-          } else if (obj.isPost) {
-            if (this.x - BULLET_RADIUS < obj.x + POST_WIDTH_RADIUS && this.x + BULLET_RADIUS > obj.x - POST_WIDTH_RADIUS
-                && this.y - BULLET_RADIUS < obj.y + POST_HEIGHT_RADIUS && this.y + BULLET_RADIUS > obj.y - POST_HEIGHT_RADIUS) {
-              this.remove();
-              obj.onhit();
-              return true;
-            }
-          }
-        }
-      });
+  tick(timePassed) {
+    const rects = objects.map(obj => obj.rect).filter(rect => rect && rect.owner !== this.owner);
+    rects.push({x: -GAME_WIDTH_RADIUS, y: 0, width: GAME_WIDTH, height: GAME_HEIGHT, owner: 'game'});
+    const cos = Math.cos(this.direction);
+    const sin = Math.sin(this.direction);
+    const rays = [];
+    for (let i = 0; i < this.segments; i++) {
+      const radius = (i + 0.5 - this.segments / 2) * this.segmentWidth;
+      rays.push(new Ray(sin * radius, -cos * radius, cos, sin));
     }
+    const results = [];
+    const distances = [];
+    rays.map(ray => ray.intersect(rects)).forEach(intersections => {
+      if (!intersections.length) {
+        distances.push(0);
+        return;
+      }
+      distances.push(Math.sqrt(intersections[0].distSquared));
+      if (intersections[0].rect.owner === 'game') return;
+      const owner = intersections[0].rect.owner;
+      let entry = results.find(({target}) => target === owner);
+      if (!entry) {
+        entry = {target: owner, strength: 1};
+      } else {
+        entry.strength++;
+      }
+    });
+    results.forEach(({target, strength}) => {
+      target.onhit(strength / this.segments * timePassed / 60);
+    });
+    this.lastDistances = distances;
+    return results;
+  }
+
+  position() {
+    super.position();
+    const distances = this.lastDistances;
+    if (!distances) return;
+    const path = [];
+    let maxDistance = 0;
+    for (let i = 0; i < this.segments; i++) {
+      if (distances[i] > maxDistance) maxDistance = distances[i];
+      const x = (i - this.segments / 2) * this.segmentWidth;
+      path.push(x + ' ' + distances[i]);
+      path.push((x + this.segmentWidth) + ' ' + distances[i]);
+    }
+    path.push((this.segments / 2 * this.segmentWidth) + ' ' + maxDistance);
+    path.push((-this.segments / 2 * this.segmentWidth) + ' ' + maxDistance);
+    this.path.setAttributeNS(null, 'd', `M${path.join('L')}z`);
+    this.svg.setAttributeNS(null, 'height', maxDistance);
   }
 
 }
@@ -232,11 +266,21 @@ class Individual extends Positionable {
   }
 
   shoot(direction = this.direction) {
-    this.elem.parentNode.appendChild(new Bullet(this.x, this.y, this, direction, bulletTypes[this.person].speed, bulletTypes[this.person].type).elem);
+    //
   }
 
-  onhit() {
-    console.log('individual hit!');
+  get rect() {
+    return {
+      x: this.x - INDIVIDUAL_RADIUS,
+      y: this.y - INDIVIDUAL_RADIUS,
+      width: INDIVIDUAL_RADIUS * 2,
+      height: INDIVIDUAL_RADIUS * 2,
+      owner: this
+    };
+  }
+
+  onhit(oofiness) {
+    console.log('INDIV', oofiness);
   }
 
 }
@@ -280,18 +324,24 @@ function tick() {
   lastTime = now;
 }
 
+function add(obj) {
+  gameWrapper.appendChild(obj.elem);
+  objects.push(obj);
+  return obj;
+}
+
 let gameWrapper;
 document.addEventListener('DOMContentLoaded', e => {
   doScreenSizeCalculations();
   gameWrapper = document.getElementById('game');
   const post = new Post('munkler', 'All students are now required to recite the SELF anthem every morning during the announcements.');
-  gameWrapper.appendChild(post.elem);
+  add(post);
   setTimeout(() => {
     const post = new Post('gggta', 'ربما سأكون الراسم أنا بالفعل T racer ماذا عن ويدماكر؟ أنا بالفعل Widow market سأكون باستيون نيرف باستيون أنت على حق. لذا ، ونستون أريد أن أكون وينستون أعتقد أنني سأكون جينجي أنا بالفعل جينجي ثم سأكون مكري لقد اخترت بالفعل مكري 🇸🇦🇸🇦🇸🇦🇸🇦🇸🇦');
-    gameWrapper.appendChild(post.elem);
+    add(post);
   }, 12000);
-  gameWrapper.appendChild(new Individual(-40, 160, 'paffy').elem);
-  gameWrapper.appendChild(new Individual(40, 160, 'poof').elem);
-  gameWrapper.appendChild(player.elem);
+  add(new Individual(-40, 160, 'paffy'));
+  add(new Individual(40, 160, 'poof'));
+  add(player);
   tick();
 }, {once: true});

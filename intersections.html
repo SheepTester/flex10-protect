@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Intersections test</title>
+    <meta charset="UTF-8">
+    <meta name="description" content="ray and boxes"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <!-- <link rel="stylesheet" type="text/css" href="../sheep3.css"> -->
+    <!-- <script src="../sheep3.js" charset="utf-8"></script> -->
+    <style>
+      body {
+        background-color: black;
+      }
+      canvas {
+        image-rendering: pixelated;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas" width="300" height="300"></canvas>
+    <script>
+const canvas = document.getElementById('canvas');
+const c = canvas.getContext('2d');
+class Rectangle {
+
+  constructor(x, y, width, height) {
+    this.x = x, this.y = y, this.width = width, this.height = height;
+  }
+
+  render() {
+    c.strokeRect(this.x, this.y, this.width, this.height);
+  }
+
+}
+
+class Intersection {
+
+  constructor(ray, rect, x, y) {
+    this.ray = ray, this.rect = rect, this.x = x, this.y = y;
+    this.distSquared = (ray.ox - x) * (ray.ox - x) + (ray.oy - y) * (ray.oy - y);
+  }
+
+  render() {
+    c.beginPath();
+    c.moveTo(this.x + 2, this.y);
+    c.arc(this.x, this.y, 2, 0, Math.PI * 2);
+    c.fill();
+  }
+
+}
+
+class Ray {
+
+  constructor(ox, oy, dx, dy) {
+    this.ox = ox, this.oy = oy, this.dx = dx, this.dy = dy;
+  }
+
+  intersect(rects) {
+    // o - origin; d - difference/delta; f - far
+    const {ox, oy, dx, dy} = this;
+    if (dx === 0 && dy === 0) return [];
+    const intersections = [];
+    rects.forEach(rect => {
+      const {x, y, width, height} = rect;
+      const fx = x + width;
+      const fy = y + height;
+      if (dx === 0) {
+        if (ox >= x && ox < fx) {
+          if (Math.sign(y - oy) === Math.sign(dy) || y === oy)
+            intersections.push(new Intersection(this, rect, ox, y));
+          if (Math.sign(fy - oy) === Math.sign(dy))
+            intersections.push(new Intersection(this, rect, ox, fy));
+        }
+      } else if (dy === 0) {
+        if (oy >= y && oy < fy) {
+          if (Math.sign(x - ox) === Math.sign(dx) || x === ox)
+            intersections.push(new Intersection(this, rect, x, oy));
+          if (Math.sign(fx - ox) === Math.sign(dx))
+            intersections.push(new Intersection(this, rect, fx, oy));
+        }
+      } else {
+        let temp;
+        temp = (x - ox) * dy / dx + oy;
+        if (temp >= y && temp < fy && Math.sign(x - ox) === Math.sign(dx) || x === ox)
+          intersections.push(new Intersection(this, rect, x, temp));
+        temp = (fx - ox) * dy / dx + oy;
+        if (temp >= y && temp < fy && Math.sign(fx - ox) === Math.sign(dx))
+          intersections.push(new Intersection(this, rect, fx, temp));
+        temp = (y - oy) * dx / dy + ox;
+        if (temp >= x && temp < fx && Math.sign(y - oy) === Math.sign(dy) || y === oy)
+          intersections.push(new Intersection(this, rect, temp, y));
+        temp = (fy - oy) * dx / dy + ox;
+        if (temp >= x && temp < fx && Math.sign(fy - oy) === Math.sign(dy))
+          intersections.push(new Intersection(this, rect, temp, fy));
+      }
+    });
+    intersections.sort((a, b) => a.distSquared - b.distSquared);
+    return intersections;
+  }
+
+  render() {
+    c.beginPath();
+    c.moveTo(this.ox, this.oy);
+    c.lineTo(this.ox + this.dx * 200, this.oy + this.dy * 200);
+    c.stroke();
+  }
+
+}
+const rects = [
+  new Rectangle(20, 20, 40, 50),
+  new Rectangle(120, 30, 10, 100),
+  new Rectangle(10, 200, 40, 90),
+  new Rectangle(200, 10, 30, 30),
+  new Rectangle(0, 0, 300, 300)
+];
+function draw(ray) {
+  c.clearRect(0, 0, 300, 300);
+  c.strokeStyle = 'red';
+  rects.forEach(r => r.render());
+  c.strokeStyle = 'green';
+  ray.render();
+  c.fillStyle = 'blue';
+  ray.intersect(rects).forEach(i => i.render());
+}
+draw(new Ray(150, 150, Math.cos(Math.PI / 6), -Math.sin(Math.PI / 6)));
+let angle = 0;
+function paint() {
+  angle += 0.01;
+  const x = Math.sin(Date.now() / 1000) * 100 + 150;
+  const y = Math.sin(Date.now() / 736) * 100 + 150;
+  draw(new Ray(x, y, Math.cos(angle), Math.sin(angle)));
+  window.requestAnimationFrame(paint);
+}
+paint();
+    </script>
+  </body>
+</html>
